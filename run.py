@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from collections.abc import Callable
 import threading
-import traceback
 from pathlib import Path
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
@@ -26,9 +25,11 @@ class ExcelMergerApp:
         self.merge_mode = tk.StringVar(value=MERGE_MODE_COMBINE)
         self.summary = tk.StringVar(value="Choose a source folder to scan for Excel workbooks.")
         self._is_running = False
+        self._widgets_disabled_during_merge: list[tk.Widget] = []
 
         self._configure_style()
         self._build_layout()
+        self.root.protocol("WM_DELETE_WINDOW", self._on_close)
 
     def _configure_style(self) -> None:
         style = ttk.Style(self.root)
@@ -57,7 +58,7 @@ class ExcelMergerApp:
         paths.grid(row=1, column=0, sticky="ew", pady=(14, 10))
         paths.columnconfigure(1, weight=1)
 
-        self._path_row(
+        source_entry, source_button = self._path_row(
             paths,
             0,
             "Source folder",
@@ -65,13 +66,16 @@ class ExcelMergerApp:
             "Browse...",
             self.choose_source_folder,
         )
-        self._path_row(
+        output_entry, output_button = self._path_row(
             paths,
             1,
             "Output file",
             self.output_path,
             "Save as...",
             self.choose_output_file,
+        )
+        self._widgets_disabled_during_merge.extend(
+            [source_entry, source_button, output_entry, output_button]
         )
 
         mode_frame = ttk.LabelFrame(
@@ -80,20 +84,24 @@ class ExcelMergerApp:
         mode_frame.grid(row=2, column=0, sticky="ew", pady=(0, 10))
         mode_frame.columnconfigure(0, weight=1)
 
-        ttk.Radiobutton(
+        combine_radio = ttk.Radiobutton(
             mode_frame,
             text="Combine all files into one worksheet.",
             variable=self.merge_mode,
             value=MERGE_MODE_COMBINE,
             command=self.refresh_summary,
-        ).grid(row=0, column=0, sticky="w")
-        ttk.Radiobutton(
+        )
+        combine_radio.grid(row=0, column=0, sticky="w")
+
+        separate_radio = ttk.Radiobutton(
             mode_frame,
             text="Keep source sheets separate.",
             variable=self.merge_mode,
             value=MERGE_MODE_SEPARATE,
             command=self.refresh_summary,
-        ).grid(row=1, column=0, sticky="w", pady=(6, 0))
+        )
+        separate_radio.grid(row=1, column=0, sticky="w", pady=(6, 0))
+        self._widgets_disabled_during_merge.extend([combine_radio, separate_radio])
 
         ttk.Label(main, textvariable=self.summary, style="Summary.TLabel", anchor="w").grid(
             row=3, column=0, sticky="ew", pady=(0, 10)
@@ -142,7 +150,7 @@ class ExcelMergerApp:
         variable: tk.StringVar,
         button_text: str,
         command: Callable[[], None],
-    ) -> None:
+    ) -> tuple[ttk.Entry, ttk.Button]:
         ttk.Label(parent, text=label).grid(row=row, column=0, sticky="w", padx=(0, 10))
 
         entry = ttk.Entry(parent, textvariable=variable)
@@ -150,9 +158,9 @@ class ExcelMergerApp:
         entry.bind("<FocusOut>", lambda _event: self.refresh_summary())
         entry.bind("<Return>", lambda _event: self.refresh_summary())
 
-        ttk.Button(parent, text=button_text, command=command).grid(
-            row=row, column=2, sticky="e", pady=4
-        )
+        button = ttk.Button(parent, text=button_text, command=command)
+        button.grid(row=row, column=2, sticky="e", pady=4)
+        return entry, button
 
     def choose_source_folder(self) -> None:
         folder = filedialog.askdirectory(title="Select source folder")
@@ -230,9 +238,9 @@ class ExcelMergerApp:
         self._append_log("Starting merge...")
 
         worker = threading.Thread(
+            name="excel-merge-worker",
             target=self._merge_worker,
             args=(source, output, self.merge_mode.get()),
-            daemon=True,
         )
         worker.start()
 
@@ -240,8 +248,7 @@ class ExcelMergerApp:
         try:
             result = merge_excel_files(source, output, mode)
         except Exception as exc:
-            details = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
-            self.root.after(0, self._merge_failed, str(exc), details)
+            self.root.after(0, self._merge_failed, str(exc))
             return
 
         self.root.after(0, self._merge_finished, result)
@@ -262,11 +269,10 @@ class ExcelMergerApp:
         self._append_log(message)
         messagebox.showinfo("Merge complete", message)
 
-    def _merge_failed(self, error: str, details: str) -> None:
+    def _merge_failed(self, error: str) -> None:
         self._set_running(False)
         self.summary.set("Merge failed. See the log for details.")
-        self._append_log("Merge failed.")
-        self._append_log(details.strip() or error)
+        self._append_log(f"Merge failed: {error}")
         messagebox.showerror(
             "Merge failed",
             f"The selected files could not be merged.\n\n{error}",
@@ -276,12 +282,24 @@ class ExcelMergerApp:
         self._is_running = is_running
         state = "disabled" if is_running else "normal"
         self.merge_button.configure(state=state)
+        for widget in self._widgets_disabled_during_merge:
+            widget.configure(state=state)
 
         if is_running:
             self.progress.start(10)
             self.summary.set("Merging files...")
         else:
             self.progress.stop()
+
+    def _on_close(self) -> None:
+        if self._is_running:
+            messagebox.showwarning(
+                "Merge in progress",
+                "Please wait for the current merge to finish before closing the app.",
+            )
+            return
+
+        self.root.destroy()
 
     def _append_log(self, message: str) -> None:
         self.log_text.configure(state="normal")
