@@ -19,7 +19,7 @@ Excel Files Merger is a small desktop utility for merging Excel workbooks on Win
 4. Download the right asset:
    - `Excel-Files-Merger-win64.exe` for most Windows machines.
    - `Excel-Files-Merger-win32.exe` for older 32-bit Windows machines.
-   - `Excel-Files-Merger-ubuntu` for Ubuntu x64 desktops.
+   - `Excel-Files-Merger-ubuntu` for Ubuntu 22.04+ x64 desktops.
 5. Run the downloaded file. On Ubuntu, make it executable first if needed:
 
 ```sh
@@ -27,7 +27,7 @@ chmod +x Excel-Files-Merger-ubuntu
 ./Excel-Files-Merger-ubuntu
 ```
 
-Ubuntu builds require a compatible graphical desktop environment with the needed Tk/display libraries available.
+Ubuntu builds target Ubuntu 22.04+ x64 desktops and require a compatible graphical desktop environment with the needed Tk/display libraries available.
 
 No Python installation is required for the downloaded executable.
 

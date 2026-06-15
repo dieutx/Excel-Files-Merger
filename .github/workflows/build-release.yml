@@ -58,7 +58,7 @@ jobs:
             artifact-name: Excel-Files-Merger-win64
             asset-name: Excel-Files-Merger-win64.exe
             build-output: dist/Excel-Files-Merger.exe
-          - os: ubuntu-latest
+          - os: ubuntu-22.04
             architecture: x64
             artifact-name: Excel-Files-Merger-ubuntu
             asset-name: Excel-Files-Merger-ubuntu
