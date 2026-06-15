@@ -64,3 +64,16 @@ def test_sanitizes_and_deduplicates_excel_sheet_titles():
     assert second == "2026_Q1_Report_East_ (2)"
     assert blank == "Sheet"
     assert all(len(title) <= 31 for title in used)
+
+
+def test_sanitizes_sheet_titles_by_stripping_outer_apostrophes_and_whitespace():
+    used: set[str] = set()
+
+    assert sanitize_sheet_title("'  Report  '", used) == "Report"
+    assert sanitize_sheet_title("  'Quarterly Report'  ", used) == "Quarterly Report"
+
+
+def test_blank_and_whitespace_sheet_titles_default_to_sheet():
+    assert sanitize_sheet_title("", set()) == "Sheet"
+    assert sanitize_sheet_title("   ", set()) == "Sheet"
+    assert sanitize_sheet_title("'   '", set()) == "Sheet"

@@ -41,7 +41,7 @@ def discover_excel_files(folder: str | Path, exclude_path: str | Path | None = N
 
 def sanitize_sheet_title(raw_title: str, used_titles: set[str]) -> str:
     cleaned = "".join("_" if char in INVALID_SHEET_TITLE_CHARS else char for char in raw_title).strip()
-    cleaned = cleaned.strip("'")
+    cleaned = cleaned.strip("'").strip()
     if not cleaned or set(cleaned) == {"_"}:
         cleaned = "Sheet"
 
