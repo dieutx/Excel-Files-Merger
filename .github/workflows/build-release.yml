@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 env:
   PYTHON_VERSION: "3.10"
@@ -80,6 +80,10 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
           architecture: ${{ matrix.architecture }}
 
+      - name: Verify Tkinter
+        if: runner.os == 'Linux'
+        run: python -c "import tkinter; print(tkinter.TkVersion)"
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
@@ -93,11 +97,14 @@ jobs:
 
       - name: Stage release asset
         shell: bash
+        env:
+          BUILD_OUTPUT: ${{ matrix.build-output }}
+          ASSET_NAME: ${{ matrix.asset-name }}
         run: |
           mkdir -p release-assets
-          cp "${{ matrix.build-output }}" "release-assets/${{ matrix.asset-name }}"
+          cp "$BUILD_OUTPUT" "release-assets/$ASSET_NAME"
           if [[ "${{ runner.os }}" == "Linux" ]]; then
-            chmod +x "release-assets/${{ matrix.asset-name }}"
+            chmod +x "release-assets/$ASSET_NAME"
           fi
 
       - name: Upload executable artifact
@@ -120,6 +127,8 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
 
     steps:
       - name: Download release assets
