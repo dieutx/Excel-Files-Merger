@@ -27,6 +27,8 @@ chmod +x Excel-Files-Merger-ubuntu
 ./Excel-Files-Merger-ubuntu
 ```
 
+Ubuntu builds require a compatible graphical desktop environment with the needed Tk/display libraries available.
+
 No Python installation is required for the downloaded executable.
 
 ## Run From Source
