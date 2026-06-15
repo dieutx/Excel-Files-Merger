@@ -1,6 +1,6 @@
 # Excel Files Merger
 
-Excel Files Merger is a small Windows desktop utility for merging Excel workbooks.
+Excel Files Merger is a small desktop utility for merging Excel workbooks on Windows and Ubuntu.
 
 ## Features
 
@@ -8,15 +8,24 @@ Excel Files Merger is a small Windows desktop utility for merging Excel workbook
 - Merge `.xlsx` and `.xlsm` workbooks.
 - Ignore Excel temporary files that start with `~$`.
 - Choose whether to combine data into one sheet or keep workbook sheets separate.
-- Download portable Windows executables built by GitHub Actions.
+- See merge progress, current file status, and timestamped log messages.
+- Download portable Windows and Ubuntu builds from GitHub Releases.
 
-## Download Portable Windows Builds
+## Download Portable Builds
 
 1. Open this repository on GitHub.
-2. Go to **Actions**.
-3. Open the latest **Build Windows EXE** workflow run.
-4. Download **Excel-Files-Merger-win64** for most Windows machines, or **Excel-Files-Merger-win32** for older 32-bit Windows machines.
-5. Extract the artifact and run `Excel-Files-Merger.exe`.
+2. Go to **Releases**.
+3. Open the latest release.
+4. Download the right asset:
+   - `Excel-Files-Merger-win64.exe` for most Windows machines.
+   - `Excel-Files-Merger-win32.exe` for older 32-bit Windows machines.
+   - `Excel-Files-Merger-ubuntu` for Ubuntu x64 desktops.
+5. Run the downloaded file. On Ubuntu, make it executable first if needed:
+
+```sh
+chmod +x Excel-Files-Merger-ubuntu
+./Excel-Files-Merger-ubuntu
+```
 
 No Python installation is required for the downloaded executable.
 
@@ -35,6 +44,16 @@ python -m PyInstaller --noconfirm --clean --onefile --windowed --name Excel-File
 ```
 
 The executable is written to `dist/Excel-Files-Merger.exe`.
+
+## Build Locally On Ubuntu
+
+```sh
+sudo apt-get install -y python3-tk
+python -m pip install -r requirements-dev.txt
+python -m PyInstaller --noconfirm --clean --onefile --windowed --name Excel-Files-Merger run.py
+```
+
+The executable is written to `dist/Excel-Files-Merger`.
 
 ## Development Commands
 
