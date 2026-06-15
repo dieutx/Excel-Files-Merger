@@ -1,47 +1,49 @@
 # Excel Files Merger
 
-This Python script allows you to merge multiple Excel files from a selected folder into a single Excel file. The script uses a graphical user interface (GUI) to let you select the folder containing the Excel files and the location to save the combined file.
+Excel Files Merger is a small Windows desktop utility for merging Excel workbooks.
 
 ## Features
 
-- Select a folder containing Excel files.
-- Combine all Excel files in the selected folder into one.
-- Save the combined Excel file to a specified location.
+- Select a source folder and output file from the desktop UI.
+- Merge `.xlsx` and `.xlsm` workbooks.
+- Ignore Excel temporary files that start with `~$`.
+- Choose whether to combine data into one sheet or keep workbook sheets separate.
+- Download portable Windows executables built by GitHub Actions.
 
-## Requirements
+## Download Portable Windows Builds
 
-- Python 3.x
-- pandas
-- openpyxl
-- tkinter
+1. Open this repository on GitHub.
+2. Go to **Actions**.
+3. Open the latest **Build Windows EXE** workflow run.
+4. Download **Excel-Files-Merger-win64** for most Windows machines, or **Excel-Files-Merger-win32** for older 32-bit Windows machines.
+5. Extract the artifact and run `Excel-Files-Merger.exe`.
 
-## Installation
+No Python installation is required for the downloaded executable.
 
-1. Clone the repository:
+## Run From Source
 
-   ```sh
-   git clone https://github.com/zackha/excel-files-merger.git
-   cd excel-files-merger
-   ```
+```sh
+python -m pip install -r requirements.txt
+python run.py
+```
 
-2. Install the required Python packages:
-   ```sh
-   pip install pandas openpyxl
-   ```
+## Build Locally On Windows
 
-## Usage
+```sh
+python -m pip install -r requirements-dev.txt
+python -m PyInstaller --noconfirm --clean --onefile --windowed --name Excel-Files-Merger run.py
+```
 
-1. Run the script:
+The executable is written to `dist/Excel-Files-Merger.exe`.
 
-   ```sh
-   python merge_excel_files.py
-   ```
+## Development Commands
 
-2. A window will appear:
-   - Click "Select Folder" to choose the folder containing your Excel files.
-   - Click "Select Save Location" to choose where to save the combined Excel file.
-   - Click "Combine and Save" to merge the files and save the combined file.
+```sh
+python -m pip install -r requirements-dev.txt
+python -m pytest -v
+python -m py_compile run.py excel_merger.py
+```
 
 ## License
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
