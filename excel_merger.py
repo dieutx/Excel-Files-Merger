@@ -95,7 +95,7 @@ def _merge_combined(files: Iterable[Path], output: Path) -> MergeResult:
                     continue
 
                 sheets_processed += 1
-                headers = _normalize_headers(rows[0])
+                headers = _normalize_headers(rows[0], reserved_names={SOURCE_FILE_COLUMN, SOURCE_SHEET_COLUMN})
                 for header in headers:
                     if header not in data_columns:
                         data_columns.append(header)
@@ -133,7 +133,8 @@ def _non_empty_rows(rows: Iterable[tuple[object, ...]]) -> list[tuple[object, ..
     return [tuple(row) for row in rows if any(value is not None for value in row)]
 
 
-def _normalize_headers(row: tuple[object, ...]) -> list[str]:
+def _normalize_headers(row: tuple[object, ...], reserved_names: set[str] | None = None) -> list[str]:
+    reserved_names = reserved_names or set()
     base_headers: list[tuple[str, bool]] = []
     real_header_bases: set[str] = set()
 
@@ -150,12 +151,12 @@ def _normalize_headers(row: tuple[object, ...]) -> list[str]:
     used: set[str] = set()
 
     for base, is_blank in base_headers:
-        if base not in used and not (is_blank and base in real_header_bases):
+        if base not in used and base not in reserved_names and not (is_blank and base in real_header_bases):
             header = base
         else:
             counter = 2
             header = f"{base} {counter}"
-            while header in used or header in reserved_bases:
+            while header in used or header in reserved_bases or header in reserved_names:
                 counter += 1
                 header = f"{base} {counter}"
         used.add(header)

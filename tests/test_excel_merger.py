@@ -144,6 +144,22 @@ def test_combined_mode_preserves_headers_that_collide_with_generated_duplicates(
     ]
 
 
+def test_combined_mode_preserves_source_metadata_when_data_headers_collide(tmp_path: Path):
+    make_workbook(
+        tmp_path / "metadata_headers.xlsx",
+        {"Data": [["_source_file", "_source_sheet", "Name"], ["file value", "sheet value", "Ada"]]},
+    )
+    output = tmp_path / "combined.xlsx"
+
+    merge_excel_files(tmp_path, output, MERGE_MODE_COMBINE)
+
+    rows = read_sheet_rows(output, "Combined")
+    assert rows == [
+        ("_source_file", "_source_sheet", "_source_file 2", "_source_sheet 2", "Name"),
+        ("metadata_headers.xlsx", "Data", "file value", "sheet value", "Ada"),
+    ]
+
+
 def test_combined_mode_preserves_later_real_headers_that_match_generated_duplicates(tmp_path: Path):
     make_workbook(
         tmp_path / "headers.xlsx",
