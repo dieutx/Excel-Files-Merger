@@ -33,7 +33,7 @@ jobs:
           python -m pip install -r requirements-dev.txt
 
       - name: Run tests
-        run: pytest -v
+        run: python -m pytest -v
 
   build-windows:
     name: Build ${{ matrix.artifact-name }}
@@ -65,7 +65,7 @@ jobs:
           python -m pip install -r requirements-dev.txt
 
       - name: Run tests
-        run: pytest -v
+        run: python -m pytest -v
 
       - name: Build executable
         run: python -m PyInstaller --noconfirm --clean --onefile --windowed --name Excel-Files-Merger run.py
