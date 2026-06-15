@@ -144,6 +144,38 @@ def test_combined_mode_preserves_headers_that_collide_with_generated_duplicates(
     ]
 
 
+def test_combined_mode_preserves_later_real_headers_that_match_generated_duplicates(tmp_path: Path):
+    make_workbook(
+        tmp_path / "headers.xlsx",
+        {"Data": [["Name", "Name", "Name 2"], ["first", "second", "third"]]},
+    )
+    output = tmp_path / "combined.xlsx"
+
+    merge_excel_files(tmp_path, output, MERGE_MODE_COMBINE)
+
+    rows = read_sheet_rows(output, "Combined")
+    assert rows == [
+        ("_source_file", "_source_sheet", "Name", "Name 3", "Name 2"),
+        ("headers.xlsx", "Data", "first", "second", "third"),
+    ]
+
+
+def test_combined_mode_preserves_later_real_headers_that_match_blank_generated_names(tmp_path: Path):
+    make_workbook(
+        tmp_path / "headers.xlsx",
+        {"Data": [[None, "Column 1", None], ["first", "second", "third"]]},
+    )
+    output = tmp_path / "combined.xlsx"
+
+    merge_excel_files(tmp_path, output, MERGE_MODE_COMBINE)
+
+    rows = read_sheet_rows(output, "Combined")
+    assert rows == [
+        ("_source_file", "_source_sheet", "Column 1 2", "Column 1", "Column 3"),
+        ("headers.xlsx", "Data", "first", "second", "third"),
+    ]
+
+
 def test_combined_mode_fails_cleanly_when_no_excel_files_exist(tmp_path: Path):
     output = tmp_path / "combined.xlsx"
 

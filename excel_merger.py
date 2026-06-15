@@ -134,16 +134,30 @@ def _non_empty_rows(rows: Iterable[tuple[object, ...]]) -> list[tuple[object, ..
 
 
 def _normalize_headers(row: tuple[object, ...]) -> list[str]:
+    base_headers: list[tuple[str, bool]] = []
+    real_header_bases: set[str] = set()
+
+    for index, value in enumerate(row, start=1):
+        text = str(value).strip() if value is not None else ""
+        is_blank = not text
+        base = text if text else f"Column {index}"
+        base_headers.append((base, is_blank))
+        if not is_blank:
+            real_header_bases.add(base)
+
+    reserved_bases = {base for base, _ in base_headers}
     headers: list[str] = []
     used: set[str] = set()
 
-    for index, value in enumerate(row, start=1):
-        base = str(value).strip() if value is not None and str(value).strip() else f"Column {index}"
-        header = base
-        counter = 2
-        while header in used:
+    for base, is_blank in base_headers:
+        if base not in used and not (is_blank and base in real_header_bases):
+            header = base
+        else:
+            counter = 2
             header = f"{base} {counter}"
-            counter += 1
+            while header in used or header in reserved_bases:
+                counter += 1
+                header = f"{base} {counter}"
         used.add(header)
         headers.append(header)
 
