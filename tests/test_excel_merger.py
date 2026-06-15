@@ -167,6 +167,33 @@ def test_combined_mode_emits_progress_events(tmp_path: Path):
     assert events[-1].output_path == output
 
 
+def test_combined_mode_writes_output_when_progress_callback_raises(tmp_path: Path):
+    make_workbook(
+        tmp_path / "a_sales.xlsx",
+        {"North": [["Name"], ["Ada"]]},
+    )
+    output = tmp_path / "combined.xlsx"
+
+    def raise_on_writing_output(event):
+        if event.event_type == "writing_output":
+            raise RuntimeError("progress failed")
+
+    result = merge_excel_files(
+        tmp_path,
+        output,
+        MERGE_MODE_COMBINE,
+        on_progress=raise_on_writing_output,
+    )
+
+    rows = read_sheet_rows(output, "Combined")
+    assert output.exists()
+    assert result.rows_written == 1
+    assert rows == [
+        ("_source_file", "_source_sheet", "Name"),
+        ("a_sales.xlsx", "North", "Ada"),
+    ]
+
+
 def test_keeps_source_sheets_separate_with_safe_unique_names(tmp_path: Path):
     make_workbook(
         tmp_path / "a_east.xlsx",

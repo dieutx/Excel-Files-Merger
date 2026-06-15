@@ -42,6 +42,16 @@ class MergeProgressEvent:
 ProgressCallback = Callable[[MergeProgressEvent], None]
 
 
+def _emit_progress(on_progress: ProgressCallback | None, event: MergeProgressEvent) -> None:
+    if not on_progress:
+        return
+
+    try:
+        on_progress(event)
+    except Exception:
+        pass
+
+
 def discover_excel_files(folder: str | Path, exclude_path: str | Path | None = None) -> list[Path]:
     folder_path = Path(folder)
     excluded = Path(exclude_path).resolve() if exclude_path else None
@@ -93,8 +103,7 @@ def merge_excel_files(
     if not files:
         raise ValueError("No Excel files were found in the selected folder.")
 
-    if on_progress:
-        on_progress(MergeProgressEvent("scan_complete", total_files=len(files)))
+    _emit_progress(on_progress, MergeProgressEvent("scan_complete", total_files=len(files)))
 
     if mode == MERGE_MODE_COMBINE:
         return _merge_combined(files, output, on_progress)
@@ -116,18 +125,18 @@ def _merge_combined(
     sheets_processed = 0
 
     for file_index, file_path in enumerate(file_list, start=1):
-        if on_progress:
-            on_progress(
-                MergeProgressEvent(
-                    "file_start",
-                    total_files=total_files,
-                    current_file_index=file_index,
-                    file_path=file_path,
-                    files_processed=files_processed,
-                    sheets_processed=sheets_processed,
-                    rows_written=len(records),
-                )
-            )
+        _emit_progress(
+            on_progress,
+            MergeProgressEvent(
+                "file_start",
+                total_files=total_files,
+                current_file_index=file_index,
+                file_path=file_path,
+                files_processed=files_processed,
+                sheets_processed=sheets_processed,
+                rows_written=len(records),
+            ),
+        )
         files_processed += 1
         workbook = load_workbook(file_path, read_only=True, data_only=True)
         try:
@@ -151,34 +160,34 @@ def _merge_combined(
                         record[header] = value
                     records.append(record)
 
-                if on_progress:
-                    on_progress(
-                        MergeProgressEvent(
-                            "sheet_processed",
-                            total_files=total_files,
-                            current_file_index=file_index,
-                            file_path=file_path,
-                            sheet_title=sheet.title,
-                            files_processed=files_processed,
-                            sheets_processed=sheets_processed,
-                            rows_written=len(records),
-                        )
-                    )
+                _emit_progress(
+                    on_progress,
+                    MergeProgressEvent(
+                        "sheet_processed",
+                        total_files=total_files,
+                        current_file_index=file_index,
+                        file_path=file_path,
+                        sheet_title=sheet.title,
+                        files_processed=files_processed,
+                        sheets_processed=sheets_processed,
+                        rows_written=len(records),
+                    ),
+                )
         finally:
             workbook.close()
 
-        if on_progress:
-            on_progress(
-                MergeProgressEvent(
-                    "file_complete",
-                    total_files=total_files,
-                    current_file_index=file_index,
-                    file_path=file_path,
-                    files_processed=files_processed,
-                    sheets_processed=sheets_processed,
-                    rows_written=len(records),
-                )
-            )
+        _emit_progress(
+            on_progress,
+            MergeProgressEvent(
+                "file_complete",
+                total_files=total_files,
+                current_file_index=file_index,
+                file_path=file_path,
+                files_processed=files_processed,
+                sheets_processed=sheets_processed,
+                rows_written=len(records),
+            ),
+        )
 
     if not records:
         raise ValueError("The selected Excel files do not contain any data rows.")
@@ -193,34 +202,36 @@ def _merge_combined(
     for record in records:
         output_sheet.append([record.get(column) for column in columns])
 
-    if on_progress:
-        on_progress(
-            MergeProgressEvent(
-                "writing_output",
-                total_files=total_files,
-                current_file_index=total_files,
-                files_processed=files_processed,
-                sheets_processed=sheets_processed,
-                rows_written=len(records),
-                output_path=output,
-            )
-        )
+    _emit_progress(
+        on_progress,
+        MergeProgressEvent(
+            "writing_output",
+            total_files=total_files,
+            current_file_index=total_files,
+            files_processed=files_processed,
+            sheets_processed=sheets_processed,
+            rows_written=len(records),
+            output_path=output,
+        ),
+    )
 
-    output_workbook.save(output)
-    output_workbook.close()
+    try:
+        output_workbook.save(output)
+    finally:
+        output_workbook.close()
     result = MergeResult(files_processed, sheets_processed, len(records), output)
-    if on_progress:
-        on_progress(
-            MergeProgressEvent(
-                "complete",
-                total_files=total_files,
-                current_file_index=total_files,
-                files_processed=result.files_processed,
-                sheets_processed=result.sheets_processed,
-                rows_written=result.rows_written,
-                output_path=result.output_path,
-            )
-        )
+    _emit_progress(
+        on_progress,
+        MergeProgressEvent(
+            "complete",
+            total_files=total_files,
+            current_file_index=total_files,
+            files_processed=result.files_processed,
+            sheets_processed=result.sheets_processed,
+            rows_written=result.rows_written,
+            output_path=result.output_path,
+        ),
+    )
     return result
 
 
@@ -242,18 +253,18 @@ def _merge_separate(
 
     try:
         for file_index, file_path in enumerate(file_list, start=1):
-            if on_progress:
-                on_progress(
-                    MergeProgressEvent(
-                        "file_start",
-                        total_files=total_files,
-                        current_file_index=file_index,
-                        file_path=file_path,
-                        files_processed=files_processed,
-                        sheets_processed=sheets_processed,
-                        rows_written=rows_written,
-                    )
-                )
+            _emit_progress(
+                on_progress,
+                MergeProgressEvent(
+                    "file_start",
+                    total_files=total_files,
+                    current_file_index=file_index,
+                    file_path=file_path,
+                    files_processed=files_processed,
+                    sheets_processed=sheets_processed,
+                    rows_written=rows_written,
+                ),
+            )
             files_processed += 1
             workbook = load_workbook(file_path, read_only=True, data_only=True)
             try:
@@ -270,66 +281,66 @@ def _merge_separate(
                     sheets_processed += 1
                     rows_written += len(rows)
 
-                    if on_progress:
-                        on_progress(
-                            MergeProgressEvent(
-                                "sheet_processed",
-                                total_files=total_files,
-                                current_file_index=file_index,
-                                file_path=file_path,
-                                sheet_title=sheet.title,
-                                files_processed=files_processed,
-                                sheets_processed=sheets_processed,
-                                rows_written=rows_written,
-                            )
-                        )
+                    _emit_progress(
+                        on_progress,
+                        MergeProgressEvent(
+                            "sheet_processed",
+                            total_files=total_files,
+                            current_file_index=file_index,
+                            file_path=file_path,
+                            sheet_title=sheet.title,
+                            files_processed=files_processed,
+                            sheets_processed=sheets_processed,
+                            rows_written=rows_written,
+                        ),
+                    )
             finally:
                 workbook.close()
 
-            if on_progress:
-                on_progress(
-                    MergeProgressEvent(
-                        "file_complete",
-                        total_files=total_files,
-                        current_file_index=file_index,
-                        file_path=file_path,
-                        files_processed=files_processed,
-                        sheets_processed=sheets_processed,
-                        rows_written=rows_written,
-                    )
-                )
+            _emit_progress(
+                on_progress,
+                MergeProgressEvent(
+                    "file_complete",
+                    total_files=total_files,
+                    current_file_index=file_index,
+                    file_path=file_path,
+                    files_processed=files_processed,
+                    sheets_processed=sheets_processed,
+                    rows_written=rows_written,
+                ),
+            )
 
         if sheets_processed == 0:
             raise ValueError("The selected Excel files do not contain any usable sheets.")
 
         output.parent.mkdir(parents=True, exist_ok=True)
-        if on_progress:
-            on_progress(
-                MergeProgressEvent(
-                    "writing_output",
-                    total_files=total_files,
-                    current_file_index=total_files,
-                    files_processed=files_processed,
-                    sheets_processed=sheets_processed,
-                    rows_written=rows_written,
-                    output_path=output,
-                )
-            )
+        _emit_progress(
+            on_progress,
+            MergeProgressEvent(
+                "writing_output",
+                total_files=total_files,
+                current_file_index=total_files,
+                files_processed=files_processed,
+                sheets_processed=sheets_processed,
+                rows_written=rows_written,
+                output_path=output,
+            ),
+        )
 
         output_workbook.save(output)
         result = MergeResult(files_processed, sheets_processed, rows_written, output)
-        if on_progress:
-            on_progress(
-                MergeProgressEvent(
-                    "complete",
-                    total_files=total_files,
-                    current_file_index=total_files,
-                    files_processed=result.files_processed,
-                    sheets_processed=result.sheets_processed,
-                    rows_written=result.rows_written,
-                    output_path=result.output_path,
-                )
-            )
+        _emit_progress(
+            on_progress,
+            MergeProgressEvent(
+                "complete",
+                total_files=total_files,
+                current_file_index=total_files,
+                files_processed=result.files_processed,
+                sheets_processed=result.sheets_processed,
+                rows_written=result.rows_written,
+                output_path=result.output_path,
+            ),
+        )
         return result
     finally:
         output_workbook.close()
