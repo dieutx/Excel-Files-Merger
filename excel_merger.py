@@ -135,14 +135,16 @@ def _non_empty_rows(rows: Iterable[tuple[object, ...]]) -> list[tuple[object, ..
 
 def _normalize_headers(row: tuple[object, ...]) -> list[str]:
     headers: list[str] = []
-    seen: dict[str, int] = {}
+    used: set[str] = set()
 
     for index, value in enumerate(row, start=1):
-        header = str(value).strip() if value is not None and str(value).strip() else f"Column {index}"
-        count = seen.get(header, 0) + 1
-        seen[header] = count
-        if count > 1:
-            header = f"{header} {count}"
+        base = str(value).strip() if value is not None and str(value).strip() else f"Column {index}"
+        header = base
+        counter = 2
+        while header in used:
+            header = f"{base} {counter}"
+            counter += 1
+        used.add(header)
         headers.append(header)
 
     return headers

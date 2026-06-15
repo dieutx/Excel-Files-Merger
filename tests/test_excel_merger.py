@@ -128,6 +128,22 @@ def test_combines_workbooks_into_one_sheet_with_source_metadata(tmp_path: Path):
     ]
 
 
+def test_combined_mode_preserves_headers_that_collide_with_generated_duplicates(tmp_path: Path):
+    make_workbook(
+        tmp_path / "headers.xlsx",
+        {"Data": [["Name", "Name 2", "Name"], ["first", "second", "third"]]},
+    )
+    output = tmp_path / "combined.xlsx"
+
+    merge_excel_files(tmp_path, output, MERGE_MODE_COMBINE)
+
+    rows = read_sheet_rows(output, "Combined")
+    assert rows == [
+        ("_source_file", "_source_sheet", "Name", "Name 2", "Name 3"),
+        ("headers.xlsx", "Data", "first", "second", "third"),
+    ]
+
+
 def test_combined_mode_fails_cleanly_when_no_excel_files_exist(tmp_path: Path):
     output = tmp_path / "combined.xlsx"
 
