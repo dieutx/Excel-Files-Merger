@@ -77,3 +77,17 @@ def test_blank_and_whitespace_sheet_titles_default_to_sheet():
     assert sanitize_sheet_title("", set()) == "Sheet"
     assert sanitize_sheet_title("   ", set()) == "Sheet"
     assert sanitize_sheet_title("'   '", set()) == "Sheet"
+
+
+def test_sanitizes_long_sheet_titles_to_excel_limit_and_deduplicates():
+    used: set[str] = set()
+    raw_title = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
+
+    first = sanitize_sheet_title(raw_title, used)
+    second = sanitize_sheet_title(raw_title, used)
+
+    assert len(raw_title) > 31
+    assert first == "ABCDEFGHIJKLMNOPQRSTUVWXYZ12345"
+    assert len(first) == 31
+    assert second == "ABCDEFGHIJKLMNOPQRST (2)"
+    assert all(len(title) <= 31 for title in used)
