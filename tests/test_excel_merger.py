@@ -66,6 +66,16 @@ def test_sanitizes_and_deduplicates_excel_sheet_titles():
     assert all(len(title) <= 31 for title in used)
 
 
+def test_sanitizes_sheet_titles_deduplicates_case_insensitively():
+    used: set[str] = set()
+
+    first = sanitize_sheet_title("Report", used)
+    second = sanitize_sheet_title("report", used)
+
+    assert first == "Report"
+    assert second == "report (2)"
+
+
 def test_sanitizes_sheet_titles_by_stripping_outer_apostrophes_and_whitespace():
     used: set[str] = set()
 

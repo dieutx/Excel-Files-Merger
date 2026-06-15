@@ -48,8 +48,9 @@ def sanitize_sheet_title(raw_title: str, used_titles: set[str]) -> str:
     base = cleaned[:MAX_SHEET_TITLE_LENGTH]
     candidate = base
     counter = 2
+    used_title_keys = {title.casefold() for title in used_titles}
 
-    while candidate in used_titles:
+    while candidate.casefold() in used_title_keys:
         suffix = f" ({counter})"
         base_length = min(DEDUPLICATED_TITLE_BASE_LENGTH, MAX_SHEET_TITLE_LENGTH - len(suffix))
         candidate = f"{base[:base_length]}{suffix}"
