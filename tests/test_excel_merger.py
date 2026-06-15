@@ -101,3 +101,39 @@ def test_sanitizes_long_sheet_titles_to_excel_limit_and_deduplicates():
     assert len(first) == 31
     assert second == "ABCDEFGHIJKLMNOPQRST (2)"
     assert all(len(title) <= 31 for title in used)
+
+
+def test_combines_workbooks_into_one_sheet_with_source_metadata(tmp_path: Path):
+    make_workbook(
+        tmp_path / "a_sales.xlsx",
+        {"North": [["Name", "Amount"], ["Ada", 10], ["Ben", 20]]},
+    )
+    make_workbook(
+        tmp_path / "b_returns.xlsx",
+        {"South": [["Name", "Reason"], ["Cora", "Damaged"]]},
+    )
+    output = tmp_path / "combined.xlsx"
+
+    result = merge_excel_files(tmp_path, output, MERGE_MODE_COMBINE)
+
+    rows = read_sheet_rows(output, "Combined")
+    assert result.files_processed == 2
+    assert result.sheets_processed == 2
+    assert result.rows_written == 3
+    assert rows == [
+        ("_source_file", "_source_sheet", "Name", "Amount", "Reason"),
+        ("a_sales.xlsx", "North", "Ada", 10, None),
+        ("a_sales.xlsx", "North", "Ben", 20, None),
+        ("b_returns.xlsx", "South", "Cora", None, "Damaged"),
+    ]
+
+
+def test_combined_mode_fails_cleanly_when_no_excel_files_exist(tmp_path: Path):
+    output = tmp_path / "combined.xlsx"
+
+    try:
+        merge_excel_files(tmp_path, output, MERGE_MODE_COMBINE)
+    except ValueError as exc:
+        assert str(exc) == "No Excel files were found in the selected folder."
+    else:
+        raise AssertionError("Expected ValueError for an empty source folder")
