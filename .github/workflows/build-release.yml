@@ -1,0 +1,136 @@
+name: Build and Release
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  PYTHON_VERSION: "3.10"
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-dev.txt
+
+      - name: Run tests
+        run: python -m pytest -v
+
+  build:
+    name: Build ${{ matrix.artifact-name }}
+    needs: test
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            architecture: x86
+            artifact-name: Excel-Files-Merger-win32
+            asset-name: Excel-Files-Merger-win32.exe
+            build-output: dist/Excel-Files-Merger.exe
+          - os: windows-latest
+            architecture: x64
+            artifact-name: Excel-Files-Merger-win64
+            asset-name: Excel-Files-Merger-win64.exe
+            build-output: dist/Excel-Files-Merger.exe
+          - os: ubuntu-latest
+            architecture: x64
+            artifact-name: Excel-Files-Merger-ubuntu
+            asset-name: Excel-Files-Merger-ubuntu
+            build-output: dist/Excel-Files-Merger
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Install Ubuntu GUI build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-tk
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          architecture: ${{ matrix.architecture }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-dev.txt
+
+      - name: Run tests
+        run: python -m pytest -v
+
+      - name: Build executable
+        run: python -m PyInstaller --noconfirm --clean --onefile --windowed --name Excel-Files-Merger run.py
+
+      - name: Stage release asset
+        shell: bash
+        run: |
+          mkdir -p release-assets
+          cp "${{ matrix.build-output }}" "release-assets/${{ matrix.asset-name }}"
+          if [[ "${{ runner.os }}" == "Linux" ]]; then
+            chmod +x "release-assets/${{ matrix.asset-name }}"
+          fi
+
+      - name: Upload executable artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.artifact-name }}
+          path: release-assets/${{ matrix.asset-name }}
+          if-no-files-found: error
+
+      - name: Upload release asset bundle
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-assets-${{ matrix.artifact-name }}
+          path: release-assets/${{ matrix.asset-name }}
+          if-no-files-found: error
+
+  release:
+    name: Publish GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+      - name: Download release assets
+        uses: actions/download-artifact@v7
+        with:
+          pattern: release-assets-*
+          path: release-assets
+          merge-multiple: true
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: release-assets/*
