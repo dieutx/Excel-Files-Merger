@@ -128,6 +128,45 @@ def test_combines_workbooks_into_one_sheet_with_source_metadata(tmp_path: Path):
     ]
 
 
+def test_combined_mode_emits_progress_events(tmp_path: Path):
+    make_workbook(
+        tmp_path / "a_sales.xlsx",
+        {"North": [["Name"], ["Ada"]]},
+    )
+    make_workbook(
+        tmp_path / "b_sales.xlsx",
+        {"South": [["Name"], ["Ben"]]},
+    )
+    output = tmp_path / "combined.xlsx"
+    events = []
+
+    result = merge_excel_files(
+        tmp_path,
+        output,
+        MERGE_MODE_COMBINE,
+        on_progress=events.append,
+    )
+
+    event_types = [event.event_type for event in events]
+    assert event_types == [
+        "scan_complete",
+        "file_start",
+        "sheet_processed",
+        "file_complete",
+        "file_start",
+        "sheet_processed",
+        "file_complete",
+        "writing_output",
+        "complete",
+    ]
+    assert [event.current_file_index for event in events if event.event_type == "file_start"] == [1, 2]
+    assert all(event.total_files == 2 for event in events)
+    assert events[-1].files_processed == result.files_processed == 2
+    assert events[-1].sheets_processed == result.sheets_processed == 2
+    assert events[-1].rows_written == result.rows_written == 2
+    assert events[-1].output_path == output
+
+
 def test_keeps_source_sheets_separate_with_safe_unique_names(tmp_path: Path):
     make_workbook(
         tmp_path / "a_east.xlsx",
@@ -148,6 +187,45 @@ def test_keeps_source_sheets_separate_with_safe_unique_names(tmp_path: Path):
     assert result.files_processed == 2
     assert result.sheets_processed == 2
     assert result.rows_written == 4
+
+
+def test_separate_mode_emits_progress_events(tmp_path: Path):
+    make_workbook(
+        tmp_path / "a_east.xlsx",
+        {"Raw": [["Name"], ["Ada"]]},
+    )
+    make_workbook(
+        tmp_path / "b_west.xlsx",
+        {"Raw": [["Name"], ["Ben"]]},
+    )
+    output = tmp_path / "separate.xlsx"
+    events = []
+
+    result = merge_excel_files(
+        tmp_path,
+        output,
+        MERGE_MODE_SEPARATE,
+        on_progress=events.append,
+    )
+
+    event_types = [event.event_type for event in events]
+    assert event_types == [
+        "scan_complete",
+        "file_start",
+        "sheet_processed",
+        "file_complete",
+        "file_start",
+        "sheet_processed",
+        "file_complete",
+        "writing_output",
+        "complete",
+    ]
+    assert [event.current_file_index for event in events if event.event_type == "file_complete"] == [1, 2]
+    assert all(event.total_files == 2 for event in events)
+    assert events[-1].files_processed == result.files_processed == 2
+    assert events[-1].sheets_processed == result.sheets_processed == 2
+    assert events[-1].rows_written == result.rows_written == 4
+    assert events[-1].output_path == output
 
 
 def test_separate_mode_fails_cleanly_when_no_usable_sheets_exist(tmp_path: Path):
