@@ -128,6 +128,40 @@ def test_combines_workbooks_into_one_sheet_with_source_metadata(tmp_path: Path):
     ]
 
 
+def test_keeps_source_sheets_separate_with_safe_unique_names(tmp_path: Path):
+    make_workbook(
+        tmp_path / "a_east.xlsx",
+        {"Raw Data": [["Name"], ["Ada"]]},
+    )
+    make_workbook(
+        tmp_path / "b_east_copy.xlsx",
+        {"Raw Data": [["Name"], ["Ben"]]},
+    )
+    output = tmp_path / "separate.xlsx"
+
+    result = merge_excel_files(tmp_path, output, MERGE_MODE_SEPARATE)
+
+    workbook = load_workbook(output, data_only=True)
+    assert workbook.sheetnames == ["a_east - Raw Data", "b_east_copy - Raw Data"]
+    assert read_sheet_rows(output, "a_east - Raw Data") == [("Name",), ("Ada",)]
+    assert read_sheet_rows(output, "b_east_copy - Raw Data") == [("Name",), ("Ben",)]
+    assert result.files_processed == 2
+    assert result.sheets_processed == 2
+    assert result.rows_written == 4
+
+
+def test_separate_mode_fails_cleanly_when_no_usable_sheets_exist(tmp_path: Path):
+    make_workbook(tmp_path / "empty.xlsx", {"Empty": []})
+    output = tmp_path / "separate.xlsx"
+
+    try:
+        merge_excel_files(tmp_path, output, MERGE_MODE_SEPARATE)
+    except ValueError as exc:
+        assert str(exc) == "The selected Excel files do not contain any usable sheets."
+    else:
+        raise AssertionError("Expected ValueError when no usable sheets exist")
+
+
 def test_combined_mode_preserves_headers_that_collide_with_generated_duplicates(tmp_path: Path):
     make_workbook(
         tmp_path / "headers.xlsx",
@@ -201,3 +235,14 @@ def test_combined_mode_fails_cleanly_when_no_excel_files_exist(tmp_path: Path):
         assert str(exc) == "No Excel files were found in the selected folder."
     else:
         raise AssertionError("Expected ValueError for an empty source folder")
+
+
+def test_rejects_unknown_merge_mode(tmp_path: Path):
+    make_workbook(tmp_path / "source.xlsx", {"Sheet1": [["Name"], ["Ada"]]})
+
+    try:
+        merge_excel_files(tmp_path, tmp_path / "out.xlsx", "unknown")
+    except ValueError as exc:
+        assert str(exc) == "Unsupported merge mode: unknown"
+    else:
+        raise AssertionError("Expected ValueError for unsupported mode")

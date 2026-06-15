@@ -75,7 +75,7 @@ def merge_excel_files(folder: str | Path, output_path: str | Path, mode: str) ->
     if mode == MERGE_MODE_COMBINE:
         return _merge_combined(files, output)
     if mode == MERGE_MODE_SEPARATE:
-        raise NotImplementedError("Separate sheet mode is implemented in a later task.")
+        return _merge_separate(files, output)
     raise ValueError(f"Unsupported merge mode: {mode}")
 
 
@@ -127,6 +127,46 @@ def _merge_combined(files: Iterable[Path], output: Path) -> MergeResult:
     output_workbook.save(output)
     output_workbook.close()
     return MergeResult(files_processed, sheets_processed, len(records), output)
+
+
+def _merge_separate(files: Iterable[Path], output: Path) -> MergeResult:
+    output_workbook = Workbook()
+    default_sheet = output_workbook.active
+    output_workbook.remove(default_sheet)
+
+    used_titles: set[str] = set()
+    files_processed = 0
+    sheets_processed = 0
+    rows_written = 0
+
+    try:
+        for file_path in files:
+            files_processed += 1
+            workbook = load_workbook(file_path, read_only=True, data_only=True)
+            try:
+                for sheet in workbook.worksheets:
+                    rows = _non_empty_rows(sheet.iter_rows(values_only=True))
+                    if not rows:
+                        continue
+
+                    title = sanitize_sheet_title(f"{file_path.stem} - {sheet.title}", used_titles)
+                    output_sheet = output_workbook.create_sheet(title)
+                    for row in rows:
+                        output_sheet.append(row)
+
+                    sheets_processed += 1
+                    rows_written += len(rows)
+            finally:
+                workbook.close()
+
+        if sheets_processed == 0:
+            raise ValueError("The selected Excel files do not contain any usable sheets.")
+
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output_workbook.save(output)
+        return MergeResult(files_processed, sheets_processed, rows_written, output)
+    finally:
+        output_workbook.close()
 
 
 def _non_empty_rows(rows: Iterable[tuple[object, ...]]) -> list[tuple[object, ...]]:
